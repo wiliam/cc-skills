@@ -51,9 +51,9 @@ The key principle: **minimize yt-dlp calls**. Each call is a separate YouTube re
 1. Check `yt-dlp`: `which yt-dlp` (install via `brew install yt-dlp` if missing)
 2. **Single call — download everything at once:**
    ```
-   yt-dlp --skip-download --write-sub --write-auto-sub --sub-lang "ru,en" --sub-format srt --print title --print upload_date -o "_inbox/transcripts/%(title)s" <URL>
+   yt-dlp --skip-download --write-sub --write-auto-sub --sub-lang "ru-orig,ru,en-orig,en" --sub-format srt --print title --print upload_date -o "_inbox/transcripts/%(title)s" <URL>
    ```
-   This downloads subs, prints the title and upload date (YYYYMMDD). After download, rename the .srt file to: `YYYY-MM-DD-youtube-short-name.lang.srt` (e.g. `2026-02-03-youtube-demchog-balance.ru.srt`). Short name: 2-4 English words, lowercase, hyphens.
+   This downloads subs, prints the title and upload date (YYYYMMDD). The `-orig` variants are auto-generated captions in the original language — some videos only have these. After download, rename the .srt file to: `YYYY-MM-DD-youtube-short-name.lang.srt` (e.g. `2026-02-03-youtube-demchog-balance.ru.srt`). Short name: 2-4 English words, lowercase, hyphens.
 3. Check what files appeared in `_inbox/transcripts/`. If both `ru` and `en` downloaded, prefer `ru` for Russian-language videos
 4. If no srt appeared: retry without language filter: `yt-dlp --skip-download --write-auto-sub --sub-format srt --print title -o "_inbox/transcripts/%(title)s" <URL>` — this grabs whatever is available
 5. If still nothing: `sleep 30` then `yt-dlp --list-subs <URL>` to see what exists, retry with correct language code
