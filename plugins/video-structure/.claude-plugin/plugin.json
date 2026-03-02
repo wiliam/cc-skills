@@ -1,0 +1,5 @@
+{
+  "name": "video-structure",
+  "description": "Extract structured notes from YouTube videos and transcripts",
+  "version": "1.0.0"
+}

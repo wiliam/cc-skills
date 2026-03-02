@@ -1,0 +1,23 @@
+{
+  "name": "wiliam-skills",
+  "owner": {
+    "name": "Ilia Moltianinov"
+  },
+  "metadata": {
+    "description": "Personal collection of Claude Code skills",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "video-structure",
+      "source": "./video-structure",
+      "description": "Extract structured notes with key theses, tools, people, and resources from YouTube videos and transcripts. Multi-pass extraction with verification, Q&A highlights, shared resources, and Obsidian frontmatter.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Ilia Moltianinov"
+      },
+      "keywords": ["video", "youtube", "transcript", "notes", "summary", "obsidian"],
+      "category": "productivity"
+    }
+  ]
+}
