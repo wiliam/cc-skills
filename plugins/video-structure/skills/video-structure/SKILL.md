@@ -106,6 +106,17 @@ tags: [3-8 topic tags, comma-separated, lowercase]
 transcript: "[[YYYY-MM-DD-source-short-name.lang.srt]]"
 ---
 
+## Executive Summary
+
+[1-2 sentences: what practical value the reader gets. Be specific — "ready-made methodology for X", "battle-tested experience with Y". No fluff like "this is not theory" or "real practitioner". Just state the value and who benefits.]
+
+**Темы:**
+- [topic 1]
+- [topic 2]
+- [3-5 topics total, one line each]
+
+---
+
 # [Topic — your editorial title, can differ from original]
 **Timestamps:** XX:XX – YY:YY | **Subtitles:** manual/auto
 
