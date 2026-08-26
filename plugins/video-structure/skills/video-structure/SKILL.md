@@ -51,34 +51,64 @@ The key principle: **minimize yt-dlp calls**. Each call is a separate YouTube re
 1. Check `yt-dlp`: `which yt-dlp` (install via `brew install yt-dlp` if missing)
 2. **Single call — download everything at once:**
    ```
-   yt-dlp --skip-download --write-sub --write-auto-sub --sub-lang "ru-orig,ru,en-orig,en" --sub-format srt --print title --print upload_date -o "_inbox/transcripts/%(title)s" <URL>
+   yt-dlp --skip-download --no-simulate --write-sub --write-auto-sub --sub-lang "ru-orig,ru,en-orig,en" --sub-format srt --print title --print upload_date -o "_inbox/transcripts/%(title)s" <URL>
    ```
+   `--no-simulate` is **mandatory**: any `--print` flag silently implies `--simulate`, which suppresses all file writes — without it yt-dlp prints the metadata and downloads nothing.
+
    This downloads subs, prints the title and upload date (YYYYMMDD). The `-orig` variants are auto-generated captions in the original language — some videos only have these. After download, rename the .srt file to: `YYYY-MM-DD-youtube-short-name.lang.srt` (e.g. `2026-02-03-youtube-demchog-balance.ru.srt`). Short name: 2-4 English words, lowercase, hyphens.
 3. Check what files appeared in `_inbox/transcripts/`. If both `ru` and `en` downloaded, prefer `ru` for Russian-language videos
-4. If no srt appeared: retry without language filter: `yt-dlp --skip-download --write-auto-sub --sub-format srt --print title -o "_inbox/transcripts/%(title)s" <URL>` — this grabs whatever is available
+4. If no srt appeared: retry without language filter: `yt-dlp --skip-download --no-simulate --write-auto-sub --sub-format srt --print title -o "_inbox/transcripts/%(title)s" <URL>` — this grabs whatever is available
 5. If still nothing: `sleep 30` then `yt-dlp --list-subs <URL>` to see what exists, retry with correct language code
 6. If 429: **wait 30 seconds** and retry once. If persistent, ask user to provide a cookies file
 7. Get upload date: `yt-dlp --print upload_date <URL>` (returns YYYYMMDD, convert to YYYY-MM-DD for frontmatter)
 8. Note subtitle type (manual/auto), language, and transcript filename — all go into document frontmatter
 
 ### Troubleshooting yt-dlp
+- **Metadata prints but no .srt appears**: a `--print` flag turns on `--simulate`, so nothing is written to disk. Add `--no-simulate`. This looks like a subtitle-availability problem but is not — check for it first
 - **429 Too Many Requests**: caused by too many calls. Always try the single-call approach first. If you need a second call, add `sleep 30` before it
 - **"No subtitles for requested languages"**: drop `--sub-lang` entirely to get whatever is available, or run `--list-subs` to see what exists
 - **ffmpeg not found warning**: `--sub-format srt` requests SRT directly from YouTube (no conversion needed). This is fine
 - **Last resort for persistent 429**: ask the user to export cookies: `yt-dlp --cookies-from-browser chrome` (will prompt for Keychain password)
 
+## Phase 1.5: Compact the transcript
+
+Raw SRT is ~65% overhead — cue indices, timestamp lines, blank lines — plus the line number `Read` prepends to every single line. Collapse it once, before reading anything:
+
+```bash
+awk '
+/-->/ { split($1,t,","); ts=t[1]; next }
+/^[0-9]+$/ || /^$/ { next }
+{ if (buf == "") anchor = ts
+  buf = buf " " $0
+  if (length(buf) > 700) { print "[" substr(anchor,1,5) "] " buf; buf = "" } }
+END { if (buf != "") print "[" substr(anchor,1,5) "] " buf }
+' INPUT.srt > SCRATCHPAD/compact.txt
+```
+
+Output is paragraphs prefixed with an `[HH:MM]` anchor, with `>>` speaker markers preserved inline. Measured on a 2:10:57 Russian stream: 331k chars → 123k. A 2.7x cut, no content lost.
+
+- **Keep the original .srt.** It stays the archived artifact that frontmatter wiki-links to. The compact file is a working copy — put it in the scratchpad, not in `_inbox/transcripts/`
+- The only thing you give up is second-level precision. The document template works in `HH:MM` ranges anyway
+- Run `wc -m` on the compact file — that number decides whether you split (Phase 2)
+
 ## Phase 2: Full read
 
 Goal: understand structure. Do NOT write the document yet.
 
-1. If user specified a timestamp — find the range via grep `HH:MM:` in SRT
+**Split decision — measure, don't estimate.** Run `wc -m` on the compact file:
+- **under ~250k characters** — process in one pass
+- **over** — split at a topic boundary, process each part separately, then merge
+
+Duration is a poor proxy: a dense panel discussion and an unhurried lecture of the same length differ 2-3x in actual text volume. ~250k compacted characters is roughly 4-5 hours of speech, and leaves headroom for Phase 3 greps, reasoning, and the output document.
+
+1. If user specified a timestamp — find the range via grep `\[HH:MM\]` in the compact file
 2. Read in 500-line chunks — the ENTIRE segment end to end
 3. **Read everything first, then outline.** Writing while reading biases toward early content and loses late details
 4. Draft an outline: topic blocks, transitions, approximate timestamps
 
 ## Phase 3: Targeted extraction
 
-First-pass reading catches the gist but misses specific names, tools, books. Run grep across the **ENTIRE subtitle file** (not just the segment — speakers may reference things elsewhere):
+First-pass reading catches the gist but misses specific names, tools, books. Run grep across the **ENTIRE compact file** (not just the segment — speakers may reference things elsewhere):
 
 - Each proper name from Phase 2 — as a separate query
 - Books/sources: `книг|book|читал|paper|study`
@@ -87,7 +117,7 @@ First-pass reading catches the gist but misses specific names, tools, books. Run
 - Numbers: `процент|%|доллар|dollar|month|рубл`
 - Recommendations: `попробуй|обязательно|must|should|never`
 
-For each match — read ±20 lines of context. Record: what, why, how it's used.
+`grep -n` on the compact file returns the whole surrounding paragraph with its `[HH:MM]` anchor already attached, so a match is usually self-contained. Read ±2 lines only when the thought clearly runs across a paragraph break. Record: what, why, how it's used.
 
 ## Phase 4: Assemble document
 
@@ -201,4 +231,4 @@ Check:
 - **Separate shared vs mentioned.** A tool the speaker built and published on GitHub ≠ a tool they mentioned in passing. The "Shared resources" table is for things viewers can go use right now
 - **Auto-subs lie:** names distorted, English terms transcribed phonetically, `>>` speaker changes approximate
 - **Target:** 200–500 lines markdown. Specifics > completeness
-- **Long videos (>2h):** split into parts, process each separately
+- **Long videos:** the split threshold is ~250k characters of *compacted* text (Phase 1.5), not a duration. Measure with `wc -m`, never guess from the runtime
