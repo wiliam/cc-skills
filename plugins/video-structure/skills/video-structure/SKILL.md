@@ -119,6 +119,8 @@ First-pass reading catches the gist but misses specific names, tools, books. Run
 
 `grep -n` on the compact file returns the whole surrounding paragraph with its `[HH:MM]` anchor already attached, so a match is usually self-contained. Read ±2 lines only when the thought clearly runs across a paragraph break. Record: what, why, how it's used.
 
+**Locate with `grep -n`, never with `grep -o` and a fixed context width.** A pattern like `grep -o ".\{120\}kotlin.\{200\}"` returns *nothing* when the term sits closer to the paragraph start than the width you asked for — the term looks absent when it is right there. This fails silently and you will conclude the speaker never said it. Instead: `grep -n PATTERN compact.txt` to get the line number, then `sed -n "N,$((N+1))p" compact.txt` to read that paragraph and the next one.
+
 ## Phase 4: Assemble document
 
 Save to `_inbox/` (or user-specified path). Use the output language matching the subtitle language.
